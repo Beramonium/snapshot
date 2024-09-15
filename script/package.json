@@ -1,0 +1,19 @@
+{
+	"name": "snapshot",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"snapshot": "tsx index.ts"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"dependencies": {
+		"@apollo/client": "3.10.5"
+	},
+	"devDependencies": {
+		"@types/node": "^18",
+		"tsx": "^4.19.1",
+		"typescript": "5"
+	}
+}

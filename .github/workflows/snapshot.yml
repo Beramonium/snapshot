@@ -1,0 +1,63 @@
+name: Daily Snapshot
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs every day at midnight UTC
+  workflow_dispatch:
+    inputs:
+      block:
+        description: 'Block number'
+        required: false
+        type: number
+      graphql-api-url:
+        description: 'GraphQL API URL'
+        required: true
+        type: string
+        default: 'https://subgraph.satsuma-prod.com/17eee43efdce/beramonium--2354464/genesis-transfers-mainnet/version/v0.4.4/api'
+
+env:
+  GRAPHQL_API_URL: ${{ inputs.graphql-api-url || 'https://subgraph.satsuma-prod.com/17eee43efdce/beramonium--2354464/genesis-transfers-mainnet/version/v0.4.4/api' }}
+
+jobs:
+  run-snapshot:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: script
+
+      - name: Fetch last safe block for Ethereum mainnet
+        id: last-safe-block
+        run: |
+          number=$(curl -s https://api.blockcypher.com/v1/eth/main | jq .last_fork_height)
+          echo "Fetched last safe block number: $number"
+          echo "number=$number" >> $GITHUB_OUTPUT
+
+      - name: Run snapshot script
+        run: npm run snapshot && mv out/snapshot.json ../snapshot.json
+        env:
+          GRAPHQL_API_URL: ${{ inputs.graphql-api-url || 'https://subgraph.satsuma-prod.com/17eee43efdce/beramonium--2354464/genesis-transfers-mainnet/version/v0.4.4/api' }}
+          BLOCK_NUMBER: ${{ inputs.block || steps.last-safe-block.outputs.number }}
+        working-directory: script
+
+      - name: Commit snapshot result
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add snapshot.json
+          git commit -m "Daily snapshot $(date +'%Y-%m-%d')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
